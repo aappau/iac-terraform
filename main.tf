@@ -9,6 +9,11 @@ terraform {
 
 provider "aws" {}
 
+# Variables
+variable "subnet_cidr_blocks" {
+	description = "cidr blocks for subnets"
+}
+
 # Creates VPC
 resource "aws_vpc" "prod_vpc" {
   	cidr_block = "10.0.0.0/16"
@@ -44,11 +49,11 @@ resource "aws_route_table" "prod_route_table" {
 # Creates a Subnet
 resource "aws_subnet" "prod_subnet_1" {
   	vpc_id     = aws_vpc.prod_vpc.id
-  	cidr_block = "10.0.1.0/24"
+  	cidr_block = var.subnet_cidr_blocks[0].cidr_block
 	availability_zone = "us-east-1a"
 
   	tags = {
-    	Name = "prod-subnet-1"
+    	Name = var.subnet_cidr_blocks[0].name
   	}
 }
 
@@ -140,4 +145,13 @@ resource "aws_instance" "web_server" {
     tags = {
         Name = "prod-web-server"
 	}
+}
+
+# Outputs
+output "server_public_ip" {
+	value = aws_eip.one.public_ip
+}
+
+output "server_private_ip" {
+	value = aws_instance.web_server.private_ip
 }
