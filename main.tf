@@ -30,88 +30,79 @@ resource "aws_default_subnet" "default_az2" {
   }
 }
 
-resource "aws_security_group" "prod_web" {
+resource "aws_security_group" "elb_sg" {
+  name         = "prod-elb"
+  description  = "prod elb security group"
+
+  ingress {
+	  description       = "HTTP"
+	  from_port         = 80
+	  to_port           = 80
+	  protocol          = "tcp"
+	  cidr_blocks       = ["0.0.0.0/0"]
+  }
+  ingress {
+	  description       = "HTTPS"
+	  from_port         = 443
+	  to_port           = 443
+	  protocol          = "tcp"
+	  cidr_blocks       = ["0.0.0.0/0"]
+  }
+  egress {
+	  from_port         = 0
+	  to_port           = 0
+	  protocol          = "-1"
+    cidr_blocks       = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name      = "prod-elb"
+	  Terraform = "true"
+  }
+}
+
+resource "aws_security_group" "instances_sg" {
   name         = "prod-web"
   description  = "prod web security group"
 
   ingress {
-	  description      = "HTTP"
-	  from_port        = 80
-	  to_port          = 80
-	  protocol         = "tcp"
-	  cidr_blocks      = ["0.0.0.0/0"]
+	  description       = "HTTP"
+	  from_port         = 80
+	  to_port           = 80
+	  protocol          = "tcp"
+	  security_groups   = [aws_security_group.elb_sg.id]
   }
   ingress {
-	  description      = "HTTPS"
-	  from_port        = 443
-	  to_port          = 443
-	  protocol         = "tcp"
-	  cidr_blocks      = ["0.0.0.0/0"]
+	  description       = "HTTPS"
+	  from_port         = 443
+	  to_port           = 443
+	  protocol          = "tcp"
+	  security_groups   = [aws_security_group.elb_sg.id]
   }
   ingress {
-	  description      = "SSH"
-	  from_port        = 22
-	  to_port          = 22
-	  protocol         = "tcp"
-	  cidr_blocks      = ["67.162.254.33/32"]
+	  description       = "SSH"
+	  from_port         = 22
+	  to_port           = 22
+	  protocol          = "tcp"
+	  cidr_blocks       = ["67.162.254.33/32"]
   }
   egress {
-	  from_port        = 0
-	  to_port          = 0
-	  protocol         = "-1"
-    cidr_blocks    = ["0.0.0.0/0"]
+	  from_port         = 0
+	  to_port           = 0
+	  protocol          = "-1"
+    cidr_blocks       = ["0.0.0.0/0"]
   }
 
   tags = {
-    Name      = "prod-web"
+    Name      = "prod-instances"
 	  Terraform = "true"
   }
 }
 
-resource "aws_instance" "prod_web" {
-  count = 2
-
-  ami           		= "ami-08e4e35cccc6189f4"
-  instance_type 		= "t2.micro"
-	availability_zone = "us-east-1a"
-	key_name 			    = "terraform"
-
-  vpc_security_group_ids = [
-    aws_security_group.prod_web.id
-  ]
-
-  user_data = <<-EOF
-		#!/bin/bash
-		sudo yum update -y
-		sudo yum install -y httpd
-		sudo systemctl start httpd
-		sudo systemctl enable httpd
-		sudo bash -c 'echo Server ready for production! > /var/www/html/index.html'
-		EOF
-  
-  tags = {
-    Name      = "prod-web"
-    Terraform = "true"
-  }  
-}
-
-resource "aws_eip" "prod_web" {
-  tags = {
-    Name      = "prod-web"
-	  Terraform = "true"
-  }
-}
-
-resource "aws_eip_association" "prod_web" {
-  instance_id   = aws_instance.prod_web.0.id
-  allocation_id = aws_eip.prod_web.id
-}
-
-resource "aws_elb" "prod_web" {
+resource "aws_elb" "prod" {
   name            = "prod-web"
-  instances       = aws_instance.prod_web.*.id
   subnets         = [aws_default_subnet.default_az1.id, aws_default_subnet.default_az2.id]
-  security_groups = [aws_security_group.prod_web.id]
+  security_groups = [aws_security_group.elb_sg.id]
 
   listener {
     instance_port     = 80
@@ -124,4 +115,35 @@ resource "aws_elb" "prod_web" {
     Name      = "prod-web"
 	  Terraform = "true"
   }
+}
+
+resource "aws_launch_template" "prod" {
+  name                    = "prod-web"
+  image_id                = "ami-0708682000e9b1895"
+  instance_type           = "t2.micro"
+  key_name 			          = "terraform"
+  vpc_security_group_ids  = [aws_security_group.instances_sg.id]
+}
+
+resource "aws_autoscaling_group" "prod" {
+  desired_capacity    = 1
+  max_size            = 1
+  min_size            = 1
+  vpc_zone_identifier = [aws_default_subnet.default_az1.id, aws_default_subnet.default_az2.id]
+
+  launch_template {
+    id      = aws_launch_template.prod.id
+    version = aws_launch_template.prod.latest_version
+  }
+
+  tag {
+    key                 = "Terraform"
+    value               = "true"
+    propagate_at_launch = true 
+  }
+}
+
+resource "aws_autoscaling_attachment" "prod" {
+  autoscaling_group_name  = aws_autoscaling_group.prod.id
+  elb                     = aws_elb.prod.id
 }
