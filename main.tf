@@ -12,39 +12,53 @@ provider "aws" {
   region  = "us-east-1"
 }
 
-# adoptes default VPC
 resource "aws_default_vpc" "default" {}
 
-# creates a Security group
+resource "aws_default_subnet" "default_az1" {
+  availability_zone = "us-east-1a"
+
+  tags = {
+    Terraform = "true"
+  }
+}
+
+resource "aws_default_subnet" "default_az2" {
+  availability_zone = "us-east-1b"
+
+  tags = {
+    Terraform = "true"
+  }
+}
+
 resource "aws_security_group" "prod_web" {
   name         = "prod-web"
   description  = "prod web security group"
 
   ingress {
-	description      = "HTTP"
-	from_port        = 80
-	to_port          = 80
-	protocol         = "tcp"
-	cidr_blocks      = ["0.0.0.0/0"]
+	  description      = "HTTP"
+	  from_port        = 80
+	  to_port          = 80
+	  protocol         = "tcp"
+	  cidr_blocks      = ["0.0.0.0/0"]
   }
   ingress {
-	description      = "HTTPS"
-	from_port        = 443
-	to_port          = 443
-	protocol         = "tcp"
-	cidr_blocks      = ["0.0.0.0/0"]
+	  description      = "HTTPS"
+	  from_port        = 443
+	  to_port          = 443
+	  protocol         = "tcp"
+	  cidr_blocks      = ["0.0.0.0/0"]
   }
   ingress {
-	description      = "SSH"
-	from_port        = 22
-	to_port          = 22
-	protocol         = "tcp"
-	cidr_blocks      = ["67.162.254.33/32"]
+	  description      = "SSH"
+	  from_port        = 22
+	  to_port          = 22
+	  protocol         = "tcp"
+	  cidr_blocks      = ["67.162.254.33/32"]
   }
   egress {
-	from_port        = 0
-	to_port          = 0
-	protocol         = "-1"
+	  from_port        = 0
+	  to_port          = 0
+	  protocol         = "-1"
     cidr_blocks    = ["0.0.0.0/0"]
   }
 
@@ -54,8 +68,9 @@ resource "aws_security_group" "prod_web" {
   }
 }
 
-# creates an EC2 instance
 resource "aws_instance" "prod_web" {
+  count = 2
+
   ami           		= "ami-08e4e35cccc6189f4"
   instance_type 		= "t2.micro"
 	availability_zone = "us-east-1a"
@@ -66,13 +81,13 @@ resource "aws_instance" "prod_web" {
   ]
 
   user_data = <<-EOF
-				#!/bin/bash
-				sudo yum update -y
-				sudo yum install -y httpd
-				sudo systemctl start httpd
-				sudo systemctl enable httpd
-				sudo bash -c 'echo Server ready for production! > /var/www/html/index.html'
-				EOF
+		#!/bin/bash
+		sudo yum update -y
+		sudo yum install -y httpd
+		sudo systemctl start httpd
+		sudo systemctl enable httpd
+		sudo bash -c 'echo Server ready for production! > /var/www/html/index.html'
+		EOF
   
   tags = {
     Name      = "prod-web"
@@ -80,9 +95,30 @@ resource "aws_instance" "prod_web" {
   }  
 }
 
-# creates an elastic IP
 resource "aws_eip" "prod_web" {
-  instance = aws_instance.prod_web.id 
+  tags = {
+    Name      = "prod-web"
+	  Terraform = "true"
+  }
+}
+
+resource "aws_eip_association" "prod_web" {
+  instance_id   = aws_instance.prod_web.0.id
+  allocation_id = aws_eip.prod_web.id
+}
+
+resource "aws_elb" "prod_web" {
+  name            = "prod-web"
+  instances       = aws_instance.prod_web.*.id
+  subnets         = [aws_default_subnet.default_az1.id, aws_default_subnet.default_az2.id]
+  security_groups = [aws_security_group.prod_web.id]
+
+  listener {
+    instance_port     = 80
+    instance_protocol = "http"
+    lb_port           = 80
+    lb_protocol       = "http"
+  }
 
   tags = {
     Name      = "prod-web"
