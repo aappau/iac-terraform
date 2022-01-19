@@ -12,35 +12,35 @@ provider "aws" {
   region  = "us-east-1"
 }
 
-variable "prod_ssh_whitelist" {
+variable "ssh_whitelist" {
   type = list(string)
 }
 
-variable "prod_http_whitelist" {
+variable "http_whitelist" {
   type = list(string)
 }
 
-variable "prod_image_id" {
+variable "image_id" {
   type = string
 }
 
-variable "prod_instance_type" {
+variable "instance_type" {
   type = string
 }
 
-variable "prod_ssh_key_name" {
+variable "ssh_key_name" {
   type = string
 }
 
-variable "prod_desired_capacity" {
+variable "desired_capacity" {
   type = number
 }
 
-variable "prod_max_size" {
+variable "max_size" {
   type = number
 }
 
-variable "prod_min_size" {
+variable "min_size" {
   type = number
 }
 
@@ -63,22 +63,22 @@ resource "aws_default_subnet" "default_az2" {
 }
 
 resource "aws_security_group" "elb_sg" {
-  name         = "prod-elb"
-  description  = "prod elb security group"
+  name         = "web-elb"
+  description  = "web elb security group"
 
   ingress {
 	  description       = "HTTP"
 	  from_port         = 80
 	  to_port           = 80
 	  protocol          = "tcp"
-	  cidr_blocks       = var.prod_http_whitelist
+	  cidr_blocks       = var.http_whitelist
   }
   ingress {
 	  description       = "HTTPS"
 	  from_port         = 443
 	  to_port           = 443
 	  protocol          = "tcp"
-	  cidr_blocks       = var.prod_http_whitelist
+	  cidr_blocks       = var.http_whitelist
   }
   egress {
 	  from_port         = 0
@@ -88,14 +88,14 @@ resource "aws_security_group" "elb_sg" {
   }
 
   tags = {
-    Name      = "prod-elb"
+    Name      = "web-elb"
 	  Terraform = "true"
   }
 }
 
 resource "aws_security_group" "instances_sg" {
-  name         = "prod-web"
-  description  = "prod web security group"
+  name         = "web-instances"
+  description  = "web instances security group"
 
   ingress {
 	  description       = "HTTP"
@@ -116,7 +116,7 @@ resource "aws_security_group" "instances_sg" {
 	  from_port         = 22
 	  to_port           = 22
 	  protocol          = "tcp"
-	  cidr_blocks       = var.prod_ssh_whitelist
+	  cidr_blocks       = var.ssh_whitelist
   }
   egress {
 	  from_port         = 0
@@ -126,56 +126,22 @@ resource "aws_security_group" "instances_sg" {
   }
 
   tags = {
-    Name      = "prod-instances"
+    Name      = "web-instances"
 	  Terraform = "true"
   }
 }
 
-resource "aws_elb" "prod" {
-  name            = "prod-web"
-  subnets         = [aws_default_subnet.default_az1.id, aws_default_subnet.default_az2.id]
-  security_groups = [aws_security_group.elb_sg.id]
-
-  listener {
-    instance_port     = 80
-    instance_protocol = "http"
-    lb_port           = 80
-    lb_protocol       = "http"
-  }
-
-  tags = {
-    Name      = "prod-web"
-	  Terraform = "true"
-  }
-}
-
-resource "aws_launch_template" "prod" {
-  name                    = "prod-web"
-  image_id                = var.prod_image_id
-  instance_type           = var.prod_instance_type
-  key_name 			          = var.prod_ssh_key_name
-  vpc_security_group_ids  = [aws_security_group.instances_sg.id]
-}
-
-resource "aws_autoscaling_group" "prod" {
-  desired_capacity    = var.prod_desired_capacity
-  max_size            = var.prod_max_size
-  min_size            = var.prod_min_size
-  vpc_zone_identifier = [aws_default_subnet.default_az1.id, aws_default_subnet.default_az2.id]
-
-  launch_template {
-    id      = aws_launch_template.prod.id
-    version = aws_launch_template.prod.latest_version
-  }
-
-  tag {
-    key                 = "Terraform"
-    value               = "true"
-    propagate_at_launch = true 
-  }
-}
-
-resource "aws_autoscaling_attachment" "prod" {
-  autoscaling_group_name  = aws_autoscaling_group.prod.id
-  elb                     = aws_elb.prod.id
+module "web_app" {
+  source = "./modules/web_app"
+  
+  image_id            = var.image_id 
+  instance_type       = var.instance_type
+  ssh_key_name        = var.ssh_key_name
+  desired_capacity    = var.desired_capacity
+  max_size            = var.max_size
+  min_size            = var.min_size
+  subnets             = [aws_default_subnet.default_az1.id, aws_default_subnet.default_az2.id] 
+  elb_security_groups = [aws_security_group.elb_sg.id]
+  ec2_security_groups = [aws_security_group.instances_sg.id]
+  env                 = "prod"
 }
