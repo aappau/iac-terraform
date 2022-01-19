@@ -12,6 +12,38 @@ provider "aws" {
   region  = "us-east-1"
 }
 
+variable "prod_ssh_whitelist" {
+  type = list(string)
+}
+
+variable "prod_http_whitelist" {
+  type = list(string)
+}
+
+variable "prod_image_id" {
+  type = string
+}
+
+variable "prod_instance_type" {
+  type = string
+}
+
+variable "prod_ssh_key_name" {
+  type = string
+}
+
+variable "prod_desired_capacity" {
+  type = number
+}
+
+variable "prod_max_size" {
+  type = number
+}
+
+variable "prod_min_size" {
+  type = number
+}
+
 resource "aws_default_vpc" "default" {}
 
 resource "aws_default_subnet" "default_az1" {
@@ -39,14 +71,14 @@ resource "aws_security_group" "elb_sg" {
 	  from_port         = 80
 	  to_port           = 80
 	  protocol          = "tcp"
-	  cidr_blocks       = ["0.0.0.0/0"]
+	  cidr_blocks       = var.prod_http_whitelist
   }
   ingress {
 	  description       = "HTTPS"
 	  from_port         = 443
 	  to_port           = 443
 	  protocol          = "tcp"
-	  cidr_blocks       = ["0.0.0.0/0"]
+	  cidr_blocks       = var.prod_http_whitelist
   }
   egress {
 	  from_port         = 0
@@ -84,7 +116,7 @@ resource "aws_security_group" "instances_sg" {
 	  from_port         = 22
 	  to_port           = 22
 	  protocol          = "tcp"
-	  cidr_blocks       = ["67.162.254.33/32"]
+	  cidr_blocks       = var.prod_ssh_whitelist
   }
   egress {
 	  from_port         = 0
@@ -119,16 +151,16 @@ resource "aws_elb" "prod" {
 
 resource "aws_launch_template" "prod" {
   name                    = "prod-web"
-  image_id                = "ami-0708682000e9b1895"
-  instance_type           = "t2.micro"
-  key_name 			          = "terraform"
+  image_id                = var.prod_image_id
+  instance_type           = var.prod_instance_type
+  key_name 			          = var.prod_ssh_key_name
   vpc_security_group_ids  = [aws_security_group.instances_sg.id]
 }
 
 resource "aws_autoscaling_group" "prod" {
-  desired_capacity    = 1
-  max_size            = 1
-  min_size            = 1
+  desired_capacity    = var.prod_desired_capacity
+  max_size            = var.prod_max_size
+  min_size            = var.prod_min_size
   vpc_zone_identifier = [aws_default_subnet.default_az1.id, aws_default_subnet.default_az2.id]
 
   launch_template {
