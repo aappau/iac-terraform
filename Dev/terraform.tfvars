@@ -1,3 +1,5 @@
+profile             = "default"
+region              = "us-east-1"
 ssh_whitelist       = ["67.162.254.33/32"]
 http_whitelist      = ["0.0.0.0/0"]
 image_id            = "ami-0708682000e9b1895"

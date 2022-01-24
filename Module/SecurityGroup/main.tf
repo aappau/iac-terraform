@@ -1,67 +1,3 @@
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 3.0"
-    }
-  }
-}
-
-provider "aws" {
-  profile = "default"
-  region  = "us-east-1"
-}
-
-variable "ssh_whitelist" {
-  type = list(string)
-}
-
-variable "http_whitelist" {
-  type = list(string)
-}
-
-variable "image_id" {
-  type = string
-}
-
-variable "instance_type" {
-  type = string
-}
-
-variable "ssh_key_name" {
-  type = string
-}
-
-variable "desired_capacity" {
-  type = number
-}
-
-variable "max_size" {
-  type = number
-}
-
-variable "min_size" {
-  type = number
-}
-
-resource "aws_default_vpc" "default" {}
-
-resource "aws_default_subnet" "default_az1" {
-  availability_zone = "us-east-1a"
-
-  tags = {
-    Terraform = "true"
-  }
-}
-
-resource "aws_default_subnet" "default_az2" {
-  availability_zone = "us-east-1b"
-
-  tags = {
-    Terraform = "true"
-  }
-}
-
 resource "aws_security_group" "elb_sg" {
   name         = "web-elb"
   description  = "web elb security group"
@@ -127,21 +63,6 @@ resource "aws_security_group" "instances_sg" {
 
   tags = {
     Name      = "web-instances"
-	  Terraform = "true"
+	Terraform = "true"
   }
-}
-
-module "web_app" {
-  source = "./modules/web_app"
-  
-  image_id            = var.image_id 
-  instance_type       = var.instance_type
-  ssh_key_name        = var.ssh_key_name
-  desired_capacity    = var.desired_capacity
-  max_size            = var.max_size
-  min_size            = var.min_size
-  subnets             = [aws_default_subnet.default_az1.id, aws_default_subnet.default_az2.id] 
-  elb_security_groups = [aws_security_group.elb_sg.id]
-  ec2_security_groups = [aws_security_group.instances_sg.id]
-  env                 = "prod"
 }
