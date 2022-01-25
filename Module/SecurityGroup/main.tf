@@ -1,6 +1,7 @@
 resource "aws_security_group" "elb_sg" {
   name         = "web-elb"
   description  = "web elb security group"
+  vpc_id 	   = var.vpc_id	
 
   ingress {
 	  description       = "HTTP"
@@ -32,6 +33,7 @@ resource "aws_security_group" "elb_sg" {
 resource "aws_security_group" "instances_sg" {
   name         = "web-instances"
   description  = "web instances security group"
+  vpc_id 	   = var.vpc_id
 
   ingress {
 	  description       = "HTTP"

@@ -6,6 +6,18 @@ variable "region" {
   type = string
 }
 
+variable "env" {
+  type = string
+}
+
+variable "vpc_cidrs" {
+  type = list(string)
+}
+
+variable "subnet_cidrs" {
+  type = list(string)
+}
+
 variable "ssh_whitelist" {
   type = list(string)
 }
@@ -54,11 +66,16 @@ provider "aws" {
 
 module "Network" {
   source = "../Module/Network"
+
+  vpc_cidrs     = var.vpc_cidrs
+  subnet_cidrs  = var.subnet_cidrs
+  env           = var.env
 }
 
 module "SecurityGroup" {
   source = "../Module/SecurityGroup"
   
+  vpc_id          = module.Network.vpc1_id
   ssh_whitelist   = var.ssh_whitelist
   http_whitelist  = var.http_whitelist
 }
@@ -75,7 +92,7 @@ module "EC2" {
   subnets             = [module.Network.subnet1_id, module.Network.subnet2_id] 
   elb_security_groups = [module.SecurityGroup.elb_sg_id]
   ec2_security_groups = [module.SecurityGroup.ec2_sg_id]
-  env                 = "dev"
+  env                 = var.env
 }
 
 output "dns_name" {

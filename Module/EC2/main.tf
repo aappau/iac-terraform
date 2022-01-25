@@ -12,7 +12,7 @@ resource "aws_elb" "this" {
 
   tags = {
     Name      = "${var.env}-web"
-	Terraform = "true"
+	  Terraform = "true"
   }
 }
 
@@ -20,12 +20,12 @@ resource "aws_launch_template" "this" {
   name                    = "${var.env}-web"
   image_id                = var.image_id
   instance_type           = var.instance_type
-  key_name 			      = var.ssh_key_name
+  key_name 			          = var.ssh_key_name
   vpc_security_group_ids  = var.ec2_security_groups
 
   tags = {
     Name      = "${var.env}-web"
-	Terraform = "true"
+	  Terraform = "true"
   }
 }
 

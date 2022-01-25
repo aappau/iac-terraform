@@ -1,5 +1,8 @@
 profile             = "default"
 region              = "us-east-1"
+env                 = "dev"
+vpc_cidrs           = ["10.0.0.0/16"]
+subnet_cidrs        = ["10.0.1.0/24", "10.0.2.0/24"]
 ssh_whitelist       = ["67.162.254.33/32"]
 http_whitelist      = ["0.0.0.0/0"]
 image_id            = "ami-0708682000e9b1895"
