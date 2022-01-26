@@ -17,5 +17,4 @@ This is deployed on my personal AWS account.
 
 # Future Steps
 - Add an infrastructure CI/CD pipeline
-- Add configuration to store state in Terraform Cloud
 - Learning and applying best practices 
