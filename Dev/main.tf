@@ -57,6 +57,13 @@ terraform {
       version = "~> 3.0"
     }
   }
+
+  backend "s3" {
+    bucket          = "appaua-tfbackend"
+    dynamodb_table  = "terraform-lock"
+    key             = "terraform"
+    region          = "us-east-1"
+  } 
 }
 
 provider "aws" {

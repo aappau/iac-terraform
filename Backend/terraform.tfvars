@@ -1,0 +1,5 @@
+profile         = "default"
+region          = "us-east-1"
+iam_user        = "linux-laptop"
+bucket_name     = "appaua-tfbackend"
+table_name      = "terraform-lock"
