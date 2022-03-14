@@ -15,6 +15,3 @@ This is deployed on my personal AWS account.
 - Create terraform modules to make your code more maintainable
 - Generate terraform documentation with terraform-docs
 
-# Future Steps
-- Add an infrastructure CI/CD pipeline
-- Learning and applying best practices 
